@@ -1,0 +1,24 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#include <cstdint>
+//#define DEBUG
+
+// WiFi credentials
+const char* ssid = "";
+const char* password = "";
+
+// EMQX Broker
+const char* mqtt_server = "server url";
+const uint16_t mqtt_port = 8883;
+
+const char* mqtt_user = "username";
+const char* mqtt_pass = "pass";
+
+const char* ca_cert = \
+"-----BEGIN CERTIFICATE-----\n" \
+"-----END CERTIFICATE-----\n" \
+;
+
+
+#endif
