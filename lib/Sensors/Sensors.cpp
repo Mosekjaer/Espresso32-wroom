@@ -9,35 +9,39 @@
 bool Sensors::initialize() {
     Wire.begin(SDA_PIN, SCL_PIN);
 
-    // byte error, address;
-    // int nDevices = 0;
+#ifdef DEBUG
+    byte error, address;
+    int nDevices = 0;
 
-    // for (address = 1; address < 127; address++) {
-    //     Wire.beginTransmission(address);
-    //     error = Wire.endTransmission();
+    for (address = 1; address < 127; address++) {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
 
-    //     if (error == 0) {
-    //     Serial.print("I2C device found at address 0x");
-    //     if (address < 16) Serial.print("0");
-    //     Serial.print(address, HEX);
-    //     Serial.println("  ✔");
-    //     nDevices++;
-    //     } else if (error == 4) {
-    //     Serial.print("Unknown error at address 0x");
-    //     if (address < 16) Serial.print("0");
-    //     Serial.println(address, HEX);
-    //     }
-    // }
+        if (error == 0) {
+        Serial.print("I2C device found at address 0x");
+        if (address < 16) Serial.print("0");
+        Serial.print(address, HEX);
+        Serial.println("  ✔");
+        nDevices++;
+        } else if (error == 4) {
+        Serial.print("Unknown error at address 0x");
+        if (address < 16) Serial.print("0");
+        Serial.println(address, HEX);
+        }
+    }
 
-    // if (nDevices == 0)
-    //     Serial.println("No I2C devices found ❌");
-    // else
-    //     Serial.println("Scan complete ✅");
+    if (nDevices == 0)
+        Serial.println("No I2C devices found ❌");
+    else
+        Serial.println("Scan complete ✅");
 
-    // if (!tempSensor.begin(0x76)) {
-    //     Serial.println("Could not find a valid BME280 sensor, check wiring!");
-    //     return false;
-    // }
+#endif
+
+    if (! aht.begin()) {
+        Serial.println("Kunne ikke finde AHT10 sensor!");
+        return false;
+    }
+    Serial.println("AHT10 initialiseret.");
 
     // initialiser BH1750
     if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
@@ -59,7 +63,7 @@ bool Sensors::initialize() {
     }
 
     // mikrofon
-    analogReadResolution(12); // Optional: ESP32 default is 12 bits (0–4095)
+    analogReadResolution(12); 
     return true;
 }
 
@@ -67,17 +71,12 @@ const char *Sensors::get_payload()
 {
     static char payload[128];
 
-    // Serial.print("Temperature = ");
-    // Serial.print(tempSensor.readTemperature());
-    // Serial.println(" °C");
-
-    // Serial.print("Pressure = ");
-    // Serial.print(tempSensor.readPressure() / 100.0F);
-    // Serial.println(" hPa");
-
-    // Serial.print("Humidity = ");
-    // Serial.print(tempSensor.readHumidity());
-    // Serial.println(" %");
+    sensors_event_t humidity, temp;
+    aht.getEvent(&humidity, &temp);
+#ifdef DEBUG
+    Serial.print("Temperature: "); Serial.print(temp.temperature); Serial.println(" degrees C");
+    Serial.print("Humidity: "); Serial.print(humidity.relative_humidity); Serial.println("% rH");
+#endif
 
     // Læser lys
     float lux = lightMeter.readLightLevel();
@@ -117,7 +116,7 @@ const char *Sensors::get_payload()
 
     // Laver JSON payload
     snprintf(payload, sizeof(payload),
-             "{\"light\":%.2f,\"eco2\":%d,\"tvoc\":%d,\"mic\":%d}",
-             lux, eco2, tvoc, micValue);
+             "{\"light\":%.2f,\"eco2\":%d,\"tvoc\":%d,\"mic\":%d,\"temp\":%.2f,\"humidity\":%.2f}",
+             lux, eco2, tvoc, micValue, temp.temperature, humidity.relative_humidity);
     return payload;
 }
