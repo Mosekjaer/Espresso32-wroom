@@ -42,5 +42,9 @@ void MqttWifiHandler::check_connection(const char* mqtt_user, const char* mqtt_p
 void MqttWifiHandler::send_payload(const char *payload)
 {
     // Lever til MQTT Broker
-    client.publish("sensor/data", payload);
+    if (client.publish("sensor/data", payload)) {
+        Serial.println("MQTT publish lykkedes!");
+    } else {
+        Serial.println("MQTT publish FEJLEDE!");
+    }
 }

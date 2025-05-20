@@ -2,34 +2,38 @@
 #include <config.h>
 #include <Sensors.h>
 #include <MqttWifiHandler.h>
+#include "time.h"
 
 Sensors sensors;
 MqttWifiHandler mqttWifiHandler;
 
+const long gmtOffset_sec = 0;
+const int daylightOffset_sec = 0;
+const char* ntpServer = "pool.ntp.org";
+
 void setup() {
   Serial.begin(115200);
 
-  // Initialisere MQTT og Wifi
   mqttWifiHandler.initialize(ssid, password, ca_cert, mqtt_server, mqtt_port);
 
-  // Initialisere sensorer
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  Serial.println("Venter på NTP synkronisering...");
+
+  struct tm timeinfo;
+  while (!getLocalTime(&timeinfo)) {
+    Serial.print(".");
+    delay(500);
+  }
+
   if (!sensors.initialize()) {
     Serial.println("Failed to initialize one or more sensors.");
     while(1);
   }
-}
 
-void loop() {
   mqttWifiHandler.check_connection(mqtt_user, mqtt_pass);
 
-  static unsigned long lastMsg = 0;
-  if (millis() - lastMsg > 5000) {
-    lastMsg = millis();
-
-    // Få payload
-    const char* payload = sensors.get_payload();
-
-    // Send payload til MQTT broker
+  const char* payload = sensors.get_payload();
+  if (payload != nullptr) {
     mqttWifiHandler.send_payload(payload);
 #ifdef DEBUG
     Serial.print("Published: ");
@@ -37,6 +41,13 @@ void loop() {
     Serial.println("-----");
 #endif
   }
+  delay(1000); // vent et sekund til pakken er sendt
+  // Sæt ESP32 i deep sleep i 5 minutter
+  esp_sleep_enable_timer_wakeup(300 * 1000000); // 5 minutes
+  esp_deep_sleep_start();
+}
 
-  delay(1000);
+
+void loop() {
+  
 }

@@ -1,10 +1,14 @@
 #include "Sensors.h"
 #include <Wire.h>
+#include "time.h"
+#include <inttypes.h>  
 
 #define SDA_PIN 21
 #define SCL_PIN 22
 
 #define MIC_PIN 34 // input ben for MAX9814
+
+#define DEBUG
 
 bool Sensors::initialize() {
     Wire.begin(SDA_PIN, SCL_PIN);
@@ -69,7 +73,15 @@ bool Sensors::initialize() {
 
 const char *Sensors::get_payload()
 {
-    static char payload[128];
+    static char payload[256];
+
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Kunne ikke hente lokal tid i payload.");
+        return nullptr;
+    }
+    time_t now = mktime(&timeinfo);
+    uint64_t timestampMs = (uint64_t)now * 1000ULL;
 
     sensors_event_t humidity, temp;
     aht.getEvent(&humidity, &temp);
@@ -116,7 +128,8 @@ const char *Sensors::get_payload()
 
     // Laver JSON payload
     snprintf(payload, sizeof(payload),
-             "{\"light\":%.2f,\"eco2\":%d,\"tvoc\":%d,\"mic\":%d,\"temp\":%.2f,\"humidity\":%.2f}",
-             lux, eco2, tvoc, micValue, temp.temperature, humidity.relative_humidity);
+            "{\"timestamp_ms\":%" PRIu64 ",\"light\":%.2f,\"eco2\":%d,\"tvoc\":%d,\"mic\":%d,\"temp\":%.2f,\"humidity\":%.2f}",
+            timestampMs, lux, eco2, tvoc, micValue, temp.temperature, humidity.relative_humidity);
+
     return payload;
 }
